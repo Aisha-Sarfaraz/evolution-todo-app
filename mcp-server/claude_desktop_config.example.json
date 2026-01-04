@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "specifyplus": {
+      "command": "node",
+      "args": [
+        "/REPLACE/WITH/ABSOLUTE/PATH/TO/todo-app/mcp-server/dist/index.js"
+      ],
+      "env": {}
+    }
+  }
+}

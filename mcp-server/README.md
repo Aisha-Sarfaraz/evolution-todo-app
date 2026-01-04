@@ -1,0 +1,327 @@
+# SpecifyPlus MCP Server
+
+**Model Context Protocol (MCP) server for SpecifyPlus commands** - Exposes all Spec-Driven Development workflow prompts as MCP resources, allowing any MCP-compatible agent or IDE to access SpecifyPlus commands.
+
+## What This Does
+
+This MCP server makes all SpecifyPlus commands (`/sp.specify`, `/sp.plan`, `/sp.tasks`, etc.) available to:
+- Any MCP-compatible IDE (Claude Desktop, VS Code with MCP extension, etc.)
+- Any AI agent that supports MCP protocol
+- Custom integrations via the Model Context Protocol
+
+Instead of manually copying command prompts, agents can simply request the prompt they need with arguments, and the server injects the arguments and returns the complete, ready-to-execute prompt.
+
+## Features
+
+✅ **All SpecifyPlus Commands Available** - Automatically loads all commands from `.claude/commands/`
+✅ **Dynamic Argument Injection** - Replaces `$ARGUMENTS` with user-provided values
+✅ **Command Metadata** - Exposes handoffs, required tools, and descriptions
+✅ **Hot Reload** - Reloads commands on each request to reflect latest changes
+✅ **Standard MCP Protocol** - Works with any MCP-compatible client
+
+## Available Commands
+
+The server exposes all SpecifyPlus commands as prompts:
+
+| Command | Description |
+|---------|-------------|
+| `sp.specify` | Create or update feature specification from natural language |
+| `sp.clarify` | Identify underspecified areas and ask targeted clarification questions |
+| `sp.plan` | Execute implementation planning workflow and generate design artifacts |
+| `sp.tasks` | Generate actionable, dependency-ordered tasks.md |
+| `sp.implement` | Execute the implementation plan by processing tasks.md |
+| `sp.adr` | Review planning artifacts and create ADRs for significant decisions |
+| `sp.analyze` | Perform cross-artifact consistency and quality analysis |
+| `sp.checklist` | Generate custom checklists for the feature |
+| `sp.constitution` | Create or update project constitution |
+| `sp.phr` | Record AI exchange as Prompt History Record for traceability |
+| `sp.git.commit_pr` | Autonomous Git agent for commits and pull requests |
+| `sp.reverse-engineer` | Reverse engineer codebase into SDD artifacts |
+| `sp.taskstoissues` | Convert tasks to actionable GitHub issues |
+
+## Installation
+
+### Prerequisites
+
+- Node.js >= 18.0.0
+- npm or yarn
+
+### Setup
+
+```bash
+cd mcp-server
+npm install
+npm run build
+```
+
+## Usage
+
+### 1. Running the Server Directly
+
+```bash
+npm start
+```
+
+The server runs on stdio transport and communicates via standard input/output following the MCP protocol.
+
+### 2. Connecting to Claude Desktop
+
+Add this configuration to your Claude Desktop config file:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "specifyplus": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/todo-app/mcp-server/dist/index.js"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+**Important:** Replace `/absolute/path/to/todo-app/` with the actual absolute path to your repository.
+
+After adding the configuration, restart Claude Desktop. You should see the SpecifyPlus prompts available in the prompt selector.
+
+### 3. Connecting to VS Code (with MCP Extension)
+
+If you have an MCP extension for VS Code, add similar configuration to your VS Code settings:
+
+```json
+{
+  "mcp.servers": {
+    "specifyplus": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/todo-app/mcp-server/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+### 4. Using Prompts from Any MCP Client
+
+Once connected, you can use prompts like this:
+
+**List all available prompts:**
+```
+GET /prompts/list
+```
+
+**Get a specific prompt with arguments:**
+```json
+{
+  "method": "prompts/get",
+  "params": {
+    "name": "sp.specify",
+    "arguments": {
+      "arguments": "Add user authentication with email and password"
+    }
+  }
+}
+```
+
+The server will return the complete prompt with `$ARGUMENTS` replaced by your input.
+
+## MCP Tools
+
+In addition to prompts, the server provides tools for introspection:
+
+### `list_commands`
+Lists all available SpecifyPlus commands with descriptions, handoffs, and required tools.
+
+**Usage:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "list_commands",
+    "arguments": {}
+  }
+}
+```
+
+### `get_command_info`
+Get detailed information about a specific command.
+
+**Usage:**
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_command_info",
+    "arguments": {
+      "command": "specify"
+    }
+  }
+}
+```
+
+**Response includes:**
+- Command name and description
+- Handoff configurations (next commands to run)
+- Required tools (e.g., GitHub API for `taskstoissues`)
+- Content preview
+
+## Architecture
+
+```
+mcp-server/
+├── src/
+│   └── index.ts          # Main MCP server implementation
+├── dist/                 # Compiled JavaScript (generated by npm run build)
+├── package.json          # Dependencies and scripts
+├── tsconfig.json         # TypeScript configuration
+└── README.md            # This file
+
+../.claude/commands/      # SpecifyPlus command definitions (auto-loaded)
+├── sp.specify.md
+├── sp.plan.md
+├── sp.tasks.md
+└── ... (all other commands)
+```
+
+### How It Works
+
+1. **Server Startup**: Reads all `.md` files from `.claude/commands/`
+2. **Frontmatter Parsing**: Extracts `description`, `handoffs`, and `tools` metadata
+3. **Prompt Exposure**: Exposes each command as an MCP prompt
+4. **Argument Injection**: When a prompt is requested:
+   - Takes user-provided `arguments` parameter
+   - Replaces `$ARGUMENTS` in the command template
+   - Returns the complete, ready-to-execute prompt
+5. **Hot Reload**: Commands are reloaded on each request for live updates
+
+## Example Workflow
+
+### Using sp.specify from Claude Desktop
+
+1. **Open Claude Desktop** with SpecifyPlus MCP server connected
+2. **Select prompt**: Choose `sp.specify` from the prompt selector
+3. **Provide arguments**: "Add task priority feature with high/medium/low levels"
+4. **Execute**: Claude receives the complete prompt with your feature description injected
+5. **Follow handoffs**: After spec is created, use suggested handoff to `sp.plan`
+
+### Chaining Commands via Handoffs
+
+Commands declare handoffs to guide the workflow:
+
+```markdown
+# sp.specify frontmatter
+handoffs:
+  - label: Build Technical Plan
+    agent: sp.plan
+    prompt: Create a plan for the spec. I am building with...
+    send: true
+```
+
+MCP clients can use this metadata to:
+- Suggest next commands automatically
+- Auto-populate the next prompt
+- Enable one-click workflow progression
+
+## Development
+
+### Building
+
+```bash
+npm run build
+```
+
+### Development Mode (Watch)
+
+```bash
+npm run dev
+```
+
+Changes to `src/index.ts` will trigger automatic recompilation.
+
+### Testing Locally
+
+```bash
+# In one terminal
+npm start
+
+# In another terminal (send MCP requests)
+echo '{"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}' | npm start
+```
+
+## Troubleshooting
+
+### Commands Not Showing Up
+
+**Problem:** MCP client doesn't show SpecifyPlus prompts
+**Solution:**
+1. Verify server is running: Check logs for "✅ Loaded X SpecifyPlus commands"
+2. Check path: Ensure `commandsDir` resolves to `.claude/commands/`
+3. Restart MCP client after configuration changes
+
+### $ARGUMENTS Not Replaced
+
+**Problem:** Prompt still contains `$ARGUMENTS` placeholder
+**Solution:**
+1. Ensure you're passing `arguments` parameter when requesting the prompt
+2. Check parameter name: Must be exactly `"arguments"`
+3. Verify request format matches MCP protocol
+
+### Server Crashes on Startup
+
+**Problem:** Error loading commands
+**Solution:**
+1. Check that `.claude/commands/` exists and contains `.md` files
+2. Verify file permissions
+3. Check for malformed frontmatter in command files
+
+## Publishing
+
+To publish this MCP server to npm registry:
+
+```bash
+npm run prepublishOnly  # Builds the project
+npm publish
+```
+
+After publishing, users can install via:
+
+```bash
+npm install -g specifyplus-mcp-server
+```
+
+And use the global binary in their MCP config:
+
+```json
+{
+  "mcpServers": {
+    "specifyplus": {
+      "command": "specifyplus-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions welcome! Please ensure:
+- TypeScript code follows existing style
+- Commands load correctly from `.claude/commands/`
+- MCP protocol compliance is maintained
+- README is updated for new features
+
+## Resources
+
+- [Model Context Protocol Documentation](https://modelcontextprotocol.io/)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [SpecifyPlus Documentation](../.specify/README.md)
+- [AGENTS.md](../AGENTS.md) - Multi-Agent Architecture Specification
