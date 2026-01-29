@@ -292,30 +292,34 @@ Not all agents run for every feature:
 
 #### Better Auth Guardian
 
-**Type:** Design / Guidance
-**Core Responsibility:** Define authentication and authorization requirements using Better Auth framework.
+**Type:** Operational
+**Core Responsibility:** Validate, implement, and secure Better Auth authentication and authorization across all frameworks and domains.
 
 **Explicit Scope:**
+- Execute security validation of Better Auth implementations using Context7 MCP
 - Define Better Auth configuration and session contracts
 - Specify authentication flows (email/password, OAuth, magic links)
 - Design permission-based authorization rules
 - Establish frontend session management patterns (useSession hook)
 - Define backend session verification patterns (auth.api.getSession)
+- Audit Better Auth security (CSRF, secrets, session security, error handling)
 - Mandate Context7 MCP usage for latest Better Auth documentation
 
 **Explicit Exclusions:**
-- Does not implement backend session verification code
-- Does not implement frontend auth components
-- Does not execute tests
+- Does not implement backend application services (Backend Architect)
+- Does not implement frontend UI components (Frontend Architect)
+- Does not execute E2E integration tests (Integration Orchestrator)
 
-**Blocking Authority:** **YES** (for security requirements)
-- Blocks if security requirements not met
-- Blocks if session handling violates Better Auth patterns
+**Blocking Authority:** **YES** (for security violations)
+- Blocks if critical security issues detected (hardcoded secrets, disabled CSRF)
+- Blocks if session handling violates Better Auth security patterns
 - Blocks if auth flows have security gaps
+- Warns for high-severity issues (user discretion to proceed)
 
-**Skill Ownership:** None (design agent, defines contracts but doesn't execute)
+**Skill Ownership:** **1 Skill**
+1. `validate-better-auth-security` - Security audit of Better Auth implementations using Context7 MCP
 
-**Reusability:** High - Better Auth patterns are transferable across projects using Better Auth.
+**Reusability:** Extremely high - Better Auth patterns and security validation work across all frameworks (Next.js, React, Vue, Express) and all domains (Todo, E-commerce, SaaS).
 
 ---
 
@@ -389,6 +393,9 @@ Not all agents run for every feature:
 **Explicit Scope:**
 - Design and implement application services (use case orchestration)
 - Define API contracts (REST endpoints, request/response schemas)
+- Validate API endpoints match OpenAPI schema
+- Generate comprehensive API documentation
+- Ensure authorization coverage on protected endpoints
 - Coordinate persistence operations via repository interfaces
 - Implement input validation at API boundaries
 - Design backend error semantics (HTTP status codes, error responses)
@@ -404,7 +411,10 @@ Not all agents run for every feature:
 - Can be blocked by Integration Orchestrator (if integration fails)
 - Can be blocked by Test Strategy Architect (if tests missing)
 
-**Skill Ownership:** None (coordinates implementation but no repeatable skill workflows)
+**Skill Ownership:** **3 Skills**
+1. `validate-api-contracts` - Verify API endpoints match OpenAPI schema using automated contract testing
+2. `generate-api-documentation` - Auto-generate comprehensive API documentation from route definitions and Pydantic models
+3. `check-authorization-coverage` - Ensure all protected API endpoints verify permissions and authorization using Security() dependencies
 
 **Reusability:** Extremely high - Python backend patterns are universal.
 
@@ -433,7 +443,8 @@ Not all agents run for every feature:
 - Can be blocked by Integration Orchestrator (if integration fails)
 - Can be blocked by Test Strategy Architect (if tests missing)
 
-**Skill Ownership:** None (coordinates implementation but no repeatable skill workflows)
+**Skill Ownership:** **1 Skill**
+1. `verify-nextjs-16-patterns` - Validate Next.js code patterns against Next.js 16 best practices using Context7 MCP
 
 **Reusability:** High - Next.js 16 patterns are transferable across projects.
 
@@ -481,6 +492,8 @@ Not all agents run for every feature:
 - Coordinate sequential agent execution (CrewAI Process.sequential)
 - Define agent execution order and handoff contracts
 - Validate integration points (Frontend ↔ Backend ↔ Domain ↔ Persistence)
+- Validate error propagation across all system layers
+- Validate test coverage against minimum thresholds
 - Execute integration and E2E tests
 - Aggregate workflow results and generate reports
 
@@ -494,11 +507,13 @@ Not all agents run for every feature:
 - Blocks if integration tests fail
 - Blocks if required agent skipped in workflow
 
-**Skill Ownership:** **4 Skills**
+**Skill Ownership:** **6 Skills**
 1. `coordinate-agent-sequence` - Execute multi-agent workflows in correct dependency order
 2. `validate-integration-points` - Verify contracts between system layers
 3. `execute-e2e-tests` - Run integration and E2E tests
 4. `aggregate-workflow-results` - Collect and summarize workflow results
+5. `validate-error-propagation` - Validate error handling and propagation across all system layers using Clean Architecture and DDD best practices
+6. `validate-test-coverage` - Validate test coverage against minimum thresholds using pytest-cov and coverage.py
 
 **Reusability:** Extremely high - orchestration patterns are universal across multi-layer systems.
 
@@ -557,17 +572,17 @@ The following table defines the authoritative mapping between agents and skills.
 | **Spec Governance Enforcer** | Governance | 0 | None (governance agent) |
 | **Test Strategy Architect** | Governance | 0 | None (governance agent) |
 | **Error & Reliability Architect** | Design/Guidance | 0 | None (design agent) |
-| **Better Auth Guardian** | Design/Guidance | 0 | None (design agent) |
+| **Better Auth Guardian** | Operational | **1** | `validate-better-auth-security` |
 | **Domain Guardian** | Domain | 0 | None (reasoning agent) |
 | **Core Todo Domain** | Domain | 0 | None (reasoning agent) |
-| **Python Backend Architect** | Operational | 0 | None (coordinates but no repeatable workflows) |
-| **Next.js Frontend Architect** | Operational | 0 | None (coordinates but no repeatable workflows) |
+| **Python Backend Architect** | Operational | **3** | `validate-api-contracts`, `generate-api-documentation`, `check-authorization-coverage` |
+| **Next.js Frontend Architect** | Operational | **1** | `verify-nextjs-16-patterns` |
 | **Data & Schema Guardian** | Operational | **4** | `generate-migration`, `execute-migration-rollback`, `validate-schema-alignment`, `verify-data-integrity` |
-| **Integration Orchestrator** | Operational | **4** | `coordinate-agent-sequence`, `validate-integration-points`, `execute-e2e-tests`, `aggregate-workflow-results` |
+| **Integration Orchestrator** | Operational | **6** | `coordinate-agent-sequence`, `validate-integration-points`, `execute-e2e-tests`, `aggregate-workflow-results`, `validate-error-propagation`, `validate-test-coverage` |
 
-**Total Skills:** 8
+**Total Skills:** 15
 **Total Agents:** 10
-**Agents with Skills:** 2 (Data & Schema Guardian, Integration Orchestrator)
+**Agents with Skills:** 5 (Better Auth Guardian, Python Backend Architect, Data & Schema Guardian, Integration Orchestrator, Next.js Frontend Architect)
 
 ---
 

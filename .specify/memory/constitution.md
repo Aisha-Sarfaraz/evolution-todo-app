@@ -38,6 +38,92 @@ Integration Status:
 ✅ Consistent with AGENT_INVOCATION_PROTOCOL.md (execution flow referenced)
 -->
 
+<!--
+SYNC IMPACT REPORT - Constitution Amendment v1.1.0
+Version Change: 1.0.0 → 1.1.0 (MINOR - Additive Amendments)
+Date: 2026-01-10
+Change Type: MINOR (Non-breaking additions to strengthen existing principles)
+
+Added Sections:
+- ADDENDUM I: VII. Code Quality & AI-Readability Standards (new principle)
+- ADDENDUM II: Testing Discipline & Organization (extends Principle III)
+- ADDENDUM III: VIII. Performance Standards & Efficiency (new principle)
+- ADDENDUM IV: Dependency Inversion & Error Handling (extends Principle IV)
+
+Rationale:
+Gap analysis identified 4 critical areas missing from v1.0.0 that are essential for Phase II+ (Web Application onward):
+1. Code quality standards (PEP 8, type hints, docstrings, complexity limits) - CRITICAL
+2. Test organization (isolation, fixtures, parametrization, markers) - HIGH
+3. Performance standards (async patterns, N+1 prevention, resource cleanup) - MODERATE
+4. Error handling patterns (taxonomy, propagation, dependency inversion) - MODERATE
+
+Validation Authority:
+- Context7 MCP: Python 3.15 (/websites/python_3_15)
+- Context7 MCP: pytest (/pytest-dev/pytest)
+- Context7 MCP: Clean Code (/ryanmcdermott/clean-code-javascript)
+
+Templates Requiring Updates:
+⚠ .specify/templates/plan-template.md - Add performance expectations section
+⚠ .specify/templates/tasks-template.md - Add test organization validation checklist
+⚠ Backend CLAUDE.md (Phase II+) - Reference new async patterns and error handling
+
+Follow-up Actions:
+- Update Phase II backend templates with FastAPI async patterns
+- Add code quality pre-commit hooks (ruff + black + mypy strict mode)
+- Add performance testing checklist for Phase IV/V deployments
+
+Integration Status:
+✅ Consistent with AGENTS.md (no agent authority changes)
+✅ Consistent with CLAUDE.md (strengthens existing SDD/TDD rules)
+⚠ Requires CLAUDE.md updates for Phase II+ implementation guidance
+
+Authoritative Sources (Context7 MCP):
+- PEP 8 Style Guide (/websites/python_3_15)
+- pytest Documentation (/pytest-dev/pytest)
+- Clean Code JavaScript (/ryanmcdermott/clean-code-javascript)
+- FastAPI async best practices (to be consulted for Phase II)
+-->
+
+<!--
+SYNC IMPACT REPORT - Constitution Amendment v1.1.1
+Version Change: 1.1.0 → 1.1.1 (PATCH - Synchronization Fix)
+Date: 2026-01-10
+Change Type: PATCH (Consistency fix, no new principles or breaking changes)
+
+Modified Sections:
+- Agent & Multi-Agent Governance (lines 1187-1290)
+
+Changes Made:
+1. Added cross-reference to AGENTS.md as authoritative source for detailed agent specifications
+2. Expanded blocking conditions for all agents to match AGENTS.md specifications
+3. Corrected Better Auth Guardian classification (removed from Design/Guidance, properly listed under Operational)
+4. Added skill ownership to all agent definitions (inline with each agent)
+5. Updated skill count: Integration Orchestrator from 4 to 6 skills (added validate-error-propagation, validate-test-coverage)
+6. Added missing agent skills:
+   - Better Auth Guardian: 1 skill (validate-better-auth-security)
+   - Python Backend Architect: 3 skills (validate-api-contracts, generate-api-documentation, check-authorization-coverage)
+   - Next.js Frontend Architect: 1 skill (verify-nextjs-16-patterns)
+7. Updated total skill count from 8 to 15 across 5 operational agents
+
+Rationale:
+Constitution's Agent & Multi-Agent Governance section was out of sync with AGENTS.md (authoritative multi-agent architecture specification). This caused:
+- Skill undercounting (8 vs 15 actual skills)
+- Missing blocking conditions for governance enforcement
+- Better Auth Guardian misclassified
+- Integration Orchestrator missing 2 critical skills (error propagation validation, test coverage validation)
+
+Validation Authority:
+- AGENTS.md v1.0 (lines 1-697) - Authoritative multi-agent architecture specification
+
+Follow-up Actions:
+- None (Constitution now aligned with AGENTS.md)
+
+Integration Status:
+✅ Fully consistent with AGENTS.md (all 10 agents, blocking conditions, 15 skills)
+✅ No changes required to CLAUDE.md (references Constitution for agent governance)
+✅ No impact on existing specs (consistency fix only)
+-->
+
 # Evolution of Todo - Hackathon II Constitution
 
 ## Project Identity & Vision
@@ -124,6 +210,146 @@ All implementation **MUST** follow the Red-Green-Refactor cycle.
 
 **Rationale:** TDD catches bugs early, ensures testable design, provides regression safety, and creates living documentation of system behavior.
 
+#### Test Organization & Structure (ADDENDUM II - v1.1.0)
+
+**Directory Structure:**
+```
+tests/
+├── conftest.py                    # Shared fixtures and configuration
+├── unit/                          # Unit tests (domain + application logic)
+│   ├── domain/
+│   │   └── test_task.py          # Domain entity tests
+│   └── services/
+│       └── test_task_service.py  # Service layer tests
+├── integration/                   # Integration tests (database, API)
+│   ├── test_api_endpoints.py
+│   └── test_database.py
+└── e2e/                          # End-to-end tests (Phase II+)
+    └── test_user_flows.py
+```
+
+**Test Naming Conventions:**
+- Test files: `test_<module_name>.py`
+- Test functions: `test_<functionality>_<scenario>_<expected_outcome>`
+- Example: `test_create_task_with_valid_data_returns_task_id()`
+- Descriptive names over short names (AI agents benefit from clarity)
+
+**Test Isolation (CRITICAL):**
+- **No shared state between tests** (each test MUST be independent)
+- Tests MUST be runnable in any order (no dependencies between tests)
+- Use fixtures for setup/teardown (no manual state management)
+- Database tests MUST use transactions with rollback (no persistent state)
+
+```python
+# ✅ CORRECT - Isolated test with fixture
+def test_create_task(db_session):
+    """Test task creation with isolated database session."""
+    task = create_task(db_session, title="Test Task")
+    assert task.id is not None
+    # db_session automatically rolls back after test
+
+# ❌ INCORRECT - Shared state
+tasks = []  # Global state - PROHIBITED
+
+def test_create_task():
+    task = Task(title="Test Task")
+    tasks.append(task)  # Modifies global state
+    assert len(tasks) == 1
+```
+
+#### Fixture Management
+
+**conftest.py Usage:**
+- Shared fixtures defined in `tests/conftest.py` (visible to all tests)
+- Domain-specific fixtures in subdirectory conftest.py (e.g., `tests/integration/conftest.py`)
+- Fixture scope: `function` (default), `class`, `module`, `session` (use broader scope only when safe)
+
+**Fixture Best Practices:**
+- Use `yield` for fixtures requiring cleanup (e.g., database connections, file handles)
+- Document fixture purpose and scope in docstring
+- Parameterized fixtures for testing multiple scenarios
+
+```python
+# conftest.py
+import pytest
+import sqlite3
+from pathlib import Path
+
+@pytest.fixture(scope="function")
+def db_session():
+    """Provide isolated database session with automatic rollback.
+
+    Scope: function (new session per test)
+    Cleanup: Automatic transaction rollback after test completes
+    """
+    engine = create_engine("sqlite:///:memory:")
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    yield session  # Test runs here
+
+    session.rollback()  # Rollback changes
+    session.close()
+```
+
+#### Parametrization Standards
+
+**When to Use Parametrization:**
+- Testing same logic with multiple input variations
+- Testing boundary conditions (empty, minimum, maximum values)
+- Testing error cases (invalid inputs)
+
+**Parametrization Pattern:**
+```python
+import pytest
+
+@pytest.mark.parametrize("title,expected_valid", [
+    ("Valid Task", True),           # Normal case
+    ("", False),                     # Empty title
+    ("a" * 200, True),               # Maximum length
+    ("a" * 201, False),              # Exceeds maximum
+    ("  Whitespace  ", True),        # Trimmed
+])
+def test_task_title_validation(title: str, expected_valid: bool):
+    """Test task title validation with various inputs."""
+    if expected_valid:
+        task = Task(title=title)
+        assert task.title.strip() == title.strip()
+    else:
+        with pytest.raises(ValidationError):
+            Task(title=title)
+```
+
+**Enforcement:**
+- Test Strategy Architect reviews tests for proper isolation
+- Blocks PRs with tests that fail when run in random order (`pytest --random-order`)
+- Blocks PRs with duplicate test logic (should use parametrization)
+
+#### Test Markers
+
+**Standard Markers:**
+- `@pytest.mark.unit` - Unit tests (fast, no I/O)
+- `@pytest.mark.integration` - Integration tests (database, API)
+- `@pytest.mark.e2e` - End-to-end tests (full user flows)
+- `@pytest.mark.slow` - Tests taking > 1 second (run with `--runslow`)
+
+**Running Subsets:**
+```bash
+pytest -m unit              # Run only unit tests
+pytest -m "not slow"        # Skip slow tests
+pytest -m "unit or integration"  # Run unit + integration
+```
+
+**Enforcement:**
+- All tests MUST be marked with appropriate category
+- CI pipeline runs fast tests (`unit`) on every commit
+- CI pipeline runs full suite (`unit + integration + e2e`) before merge
+
+**Rationale:**
+Organized tests scale across all 5 phases. Fixture patterns prevent test pollution. Parametrization reduces duplication. Markers enable fast feedback loops (run unit tests in seconds, full suite in minutes).
+
+**Authority:** pytest documentation (Context7: `/pytest-dev/pytest`), pytest best practices for fixture scope and parametrization
+
 ### IV. Clean Separation of Concerns
 
 System architecture **MUST** maintain clear boundaries between layers.
@@ -143,6 +369,172 @@ System architecture **MUST** maintain clear boundaries between layers.
 - **Better Auth Guardian:** Defines authentication contracts and security boundaries
 
 **Rationale:** Separation of concerns enables independent testing, parallel development, technology swaps, and clear ownership boundaries between specialist agents.
+
+#### Dependency Inversion & Interface Segregation (ADDENDUM IV - v1.1.0)
+
+**Dependency Inversion Principle (DIP):**
+- High-level modules (domain, application) MUST NOT depend on low-level modules (infrastructure)
+- Both MUST depend on abstractions (interfaces, protocols)
+- Domain layer defines repository interfaces, infrastructure layer implements them
+
+**Example (Task Repository):**
+```python
+# domain/repositories.py (abstract interface)
+from abc import ABC, abstractmethod
+from typing import Protocol
+
+class TaskRepository(Protocol):
+    """Abstract repository interface defined by domain layer."""
+
+    async def get_by_id(self, task_id: str) -> Task | None:
+        """Retrieve task by ID."""
+        ...
+
+    async def save(self, task: Task) -> None:
+        """Persist task."""
+        ...
+
+    async def delete(self, task_id: str) -> None:
+        """Delete task."""
+        ...
+
+# infrastructure/repositories.py (concrete implementation)
+class SQLTaskRepository:
+    """SQLAlchemy implementation of TaskRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, task_id: str) -> Task | None:
+        result = await self.session.execute(
+            select(TaskModel).where(TaskModel.id == task_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def save(self, task: Task) -> None:
+        # Save task to database
+        pass
+
+# application/services.py (depends on abstraction)
+class TaskService:
+    """Application service coordinating task operations."""
+
+    def __init__(self, task_repo: TaskRepository):
+        self.task_repo = task_repo  # Depends on interface, not implementation
+
+    async def create_task(self, title: str) -> Task:
+        task = Task(title=title)
+        await self.task_repo.save(task)
+        return task
+```
+
+**Interface Segregation:**
+- Repository interfaces MUST be focused (single responsibility)
+- Large interfaces split into smaller, specific interfaces
+- Example: `TaskQueryRepository` (read) vs `TaskCommandRepository` (write) for CQRS patterns (Phase V+)
+
+**Enforcement:**
+- Domain Guardian blocks infrastructure dependencies in domain layer
+- Data & Schema Guardian ensures repository interfaces defined by domain
+- Backend Architect implements repository pattern consistently
+
+#### Error Propagation Patterns
+
+**Error Flow Across Layers:**
+```
+API Layer (FastAPI)
+    ↓ Catches HTTPException, returns HTTP status codes
+Application Layer (Services)
+    ↓ Catches domain errors, wraps in application errors
+Domain Layer (Entities)
+    ↓ Raises domain-specific exceptions
+Infrastructure Layer (Database)
+    ↓ Raises infrastructure exceptions (connection errors, etc.)
+```
+
+**Domain Errors (Business Rule Violations):**
+```python
+# domain/errors.py
+class DomainError(Exception):
+    """Base class for domain errors."""
+    pass
+
+class TaskNotFoundError(DomainError):
+    """Task does not exist."""
+    pass
+
+class InvalidTaskStateError(DomainError):
+    """Task state transition is invalid."""
+    pass
+
+# domain/entities.py
+class Task:
+    def complete(self) -> None:
+        if self.status == TaskStatus.COMPLETED:
+            raise InvalidTaskStateError("Task is already completed")
+        self.status = TaskStatus.COMPLETED
+```
+
+**Application Errors (Use Case Failures):**
+```python
+# application/errors.py
+class ApplicationError(Exception):
+    """Base class for application errors."""
+    pass
+
+class UnauthorizedError(ApplicationError):
+    """User is not authorized for this operation."""
+    pass
+
+# application/services.py
+class TaskService:
+    async def delete_task(self, task_id: str, user_id: str) -> None:
+        task = await self.task_repo.get_by_id(task_id)
+        if not task:
+            raise TaskNotFoundError(f"Task {task_id} not found")
+        if task.user_id != user_id:
+            raise UnauthorizedError("Cannot delete another user's task")
+        await self.task_repo.delete(task_id)
+```
+
+**API Layer Error Handling (FastAPI):**
+```python
+from fastapi import HTTPException, status
+
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, current_user: User = Depends(get_current_user)):
+    try:
+        await task_service.delete_task(task_id, current_user.id)
+        return {"status": "deleted"}
+    except TaskNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except UnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        # Log internal error, return generic message to user
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred"
+        )
+```
+
+**Error Logging:**
+- Domain errors: INFO level (expected business rule violations)
+- Application errors: WARNING level (authorization failures, invalid operations)
+- Infrastructure errors: ERROR level (database connection failures, external API errors)
+- Unexpected errors: CRITICAL level (unhandled exceptions)
+
+**Enforcement:**
+- Error & Reliability Architect defines error taxonomy (domain, application, infrastructure)
+- Backend Architect implements error propagation patterns
+- Integration Orchestrator validates error handling in integration tests
+- Better Auth Guardian validates authorization error handling
+
+**Rationale:**
+Dependency Inversion enables infrastructure swapping (in-memory → PostgreSQL → distributed cache). Error propagation patterns ensure consistent error handling across layers. Clear error boundaries prevent business logic leaking into API responses.
+
+**Authority:** Clean Architecture principles (Robert C. Martin), Domain-Driven Design error handling patterns
 
 ### V. Code Modularity & Reusability
 
@@ -180,6 +572,349 @@ System **MUST** enforce security, user isolation, and comprehensive observabilit
 - **Monitoring Stack (Phase V):** Prometheus + Grafana + Loki + Jaeger
 
 **Rationale:** Security prevents data breaches and unauthorized access. Isolation ensures compliance and user privacy. Observability enables debugging, performance optimization, and incident response.
+
+**Password Hashing (Phase II+):**
+- **Algorithm:** bcrypt with salt (minimum 10 rounds)
+- **Verification:** Password comparison via bcrypt.checkpw()
+- **No Plain Text:** Never store passwords in plain text or reversibly encrypted
+
+---
+
+### VII. Code Quality & AI-Readability Standards (ADDENDUM I - v1.1.0)
+
+All code **MUST** be written for both human and AI readability, following PEP 8 and modern Python best practices.
+
+#### PEP 8 Compliance (Mandatory)
+
+**Line Length:**
+- Maximum 88 characters per line (Black default, more permissive than PEP 8's 79)
+- Docstrings and comments: 72 characters maximum for readability
+
+**Indentation:**
+- 4 spaces per indentation level (no tabs)
+- Continuation lines aligned with opening delimiter or use hanging indent
+
+**Naming Conventions:**
+- Modules: `lowercase_with_underscores.py`
+- Classes: `PascalCase` (e.g., `TaskRepository`, `UserService`)
+- Functions/Methods: `lowercase_with_underscores` (e.g., `create_task`, `validate_user`)
+- Constants: `UPPERCASE_WITH_UNDERSCORES` (e.g., `MAX_TITLE_LENGTH`, `API_VERSION`)
+- Private attributes: `_leading_underscore` (e.g., `_internal_state`)
+
+**Imports:**
+- Absolute imports preferred over relative imports
+- Import order: standard library → third-party → local application (enforced by ruff)
+- One import per line (except `from module import a, b`)
+
+#### Type Hints (Mandatory)
+
+**Function Signatures:**
+- All public functions/methods MUST have type hints for parameters and return values
+- Use `typing` module for complex types (List, Dict, Optional, Union, Callable)
+- Use `None` return type explicitly for functions with no return value
+
+```python
+# ✅ CORRECT
+def create_task(title: str, description: str | None = None) -> Task:
+    """Create a new task with optional description."""
+    return Task(title=title, description=description)
+
+# ❌ INCORRECT (no type hints)
+def create_task(title, description=None):
+    return Task(title=title, description=description)
+```
+
+**Type Alias Definitions:**
+- Complex types extracted as type aliases for reusability
+- Type aliases documented with docstrings
+
+```python
+from typing import TypeAlias
+
+TaskID: TypeAlias = str
+TaskDict: TypeAlias = dict[str, Any]
+```
+
+**Enforcement:**
+- mypy in strict mode (no implicit `Any`, no untyped definitions)
+- Type hint coverage: 100% for domain layer, 95% for application layer, 90% for infrastructure layer
+
+#### Docstring Standards (Mandatory)
+
+**Module Docstrings:**
+- Every Python module MUST have a module-level docstring
+- First line: concise summary (one sentence)
+- Subsequent lines: detailed description, usage examples (if applicable)
+
+```python
+"""Task domain models and business logic.
+
+This module defines the core Task entity and its business rules including
+state transitions, validation, and invariants.
+"""
+```
+
+**Class Docstrings:**
+- Every class MUST have a docstring
+- Describe purpose, responsibilities, and usage patterns
+- Document class-level invariants
+
+```python
+class Task:
+    """Represents a todo task with lifecycle management.
+
+    Invariants:
+    - Title must be non-empty and ≤ 200 characters
+    - Status must be one of: pending, in_progress, completed
+    - Once completed, status cannot change
+
+    Lifecycle:
+    pending → in_progress → completed
+    """
+```
+
+**Function/Method Docstrings:**
+- All public functions/methods MUST have docstrings
+- Private functions (_prefixed) SHOULD have docstrings if complex
+- Format: Google style (summary, Args, Returns, Raises)
+
+```python
+def update_task(task_id: str, updates: dict[str, Any]) -> Task:
+    """Update specified task fields.
+
+    Args:
+        task_id: Unique identifier for the task
+        updates: Dictionary of field names and new values
+
+    Returns:
+        Updated Task instance
+
+    Raises:
+        TaskNotFoundError: If task_id does not exist
+        ValidationError: If updates violate task invariants
+    """
+```
+
+**Enforcement:**
+- ruff configured to check docstring presence (D100-D107 rules)
+- Spec Governance Enforcer blocks PRs with missing docstrings for public APIs
+
+#### Code Readability Rules
+
+**Function Length:**
+- Maximum 50 lines per function (excluding docstring)
+- Complex functions MUST be decomposed into smaller helper functions
+- Rationale: AI agents analyze code in chunks; shorter functions improve comprehension
+
+**Cyclomatic Complexity:**
+- Maximum complexity: 10 per function (enforced by ruff)
+- High complexity triggers refactoring requirement
+
+**Magic Numbers:**
+- No magic numbers in code (extract as named constants)
+- Exception: 0, 1, -1 (contextually obvious meanings)
+
+```python
+# ✅ CORRECT
+MAX_TITLE_LENGTH = 200
+if len(title) > MAX_TITLE_LENGTH:
+    raise ValidationError(f"Title exceeds {MAX_TITLE_LENGTH} characters")
+
+# ❌ INCORRECT
+if len(title) > 200:
+    raise ValidationError("Title too long")
+```
+
+**Comments:**
+- Use comments to explain **why**, not **what** (code should be self-documenting)
+- TODOs must include issue number: `# TODO(#123): Implement priority sorting`
+- FIXMEs prohibited in main branch (must be resolved before merge)
+
+#### Enforcement
+
+**Pre-Commit Checks:**
+- Black formatting verification
+- Ruff linting (all PEP 8 rules enabled)
+- Mypy type checking (strict mode)
+
+**Blocking Authority:**
+- Spec Governance Enforcer blocks PRs failing any pre-commit check
+- No exceptions (emergency fixes require retroactive compliance)
+
+**Rationale:**
+Consistent code quality ensures AI agents can analyze, modify, and generate code reliably across all 5 phases. Type hints enable static analysis and prevent runtime errors. Docstrings create self-documenting code that future agents and developers can understand without context.
+
+**Authority:** PEP 8 (official Python style guide), Python 3.15 documentation (Context7: `/websites/python_3_15`), Black formatting standards
+
+---
+
+### VIII. Performance Standards & Efficiency (ADDENDUM III - v1.1.0)
+
+All code **MUST** be written with performance awareness appropriate to the current phase.
+
+#### Phase-Appropriate Performance Expectations
+
+**Phase I (Console App):**
+- Acceptable: Synchronous operations, in-memory storage
+- Response time: < 100ms for CRUD operations
+- No performance optimization required (YAGNI principle)
+
+**Phase II (Web Application):**
+- **Mandatory**: Async/await for all I/O operations (database, external APIs)
+- API response time: p95 < 500ms for read operations, p95 < 1s for write operations
+- Database connection pooling required (SQLAlchemy pool size: 5-20 connections)
+- N+1 query prevention (see below)
+
+**Phase III (AI Chatbot):**
+- MCP tool response time: p95 < 2s (including AI processing)
+- Streaming responses for long-running operations (progress indicators)
+- Conversation history retrieval: < 100ms
+
+**Phase IV (Kubernetes):**
+- Container startup time: < 30s (health checks pass)
+- Graceful shutdown: < 10s (complete in-flight requests)
+- Resource limits: CPU 500m (0.5 cores), Memory 512Mi
+
+**Phase V (Cloud-Native):**
+- Auto-scaling triggers: CPU > 70%, Memory > 80%
+- Event processing latency: p95 < 5s (Kafka consumers)
+- Load testing passed: 100 req/s sustained, 500 req/s peak
+
+#### Async/Await Patterns (Phase II+)
+
+**When to Use Async:**
+- Database queries (SQLAlchemy async engine)
+- HTTP requests (httpx async client)
+- File I/O operations (aiofiles)
+- External API calls (OpenAI, third-party services)
+
+**When NOT to Use Async:**
+- Pure computation (no I/O)
+- Short in-memory operations
+- Synchronous libraries (blocking calls defeat async benefits)
+
+**FastAPI Async Patterns:**
+```python
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
+
+# ✅ CORRECT - Async database query
+@app.get("/tasks")
+async def list_tasks(db: AsyncSession = Depends(get_db)):
+    """Async endpoint with async database query."""
+    result = await db.execute(select(Task))
+    tasks = result.scalars().all()
+    return tasks
+
+# ❌ INCORRECT - Blocking call in async endpoint
+@app.get("/tasks")
+async def list_tasks(db: Session = Depends(get_db)):
+    """Async endpoint but synchronous database query (blocks event loop)."""
+    tasks = db.query(Task).all()  # Blocking call
+    return tasks
+```
+
+**Async Context Managers:**
+```python
+# Proper async resource management
+async with httpx.AsyncClient() as client:
+    response = await client.get("https://api.example.com/data")
+    data = response.json()
+```
+
+#### N+1 Query Prevention
+
+**Problem**: Loading related data in loops causes N+1 queries (1 query for parent + N queries for children)
+
+**Solution**: Use eager loading (JOINs) or batching
+
+**Example (Task with Owner):**
+```python
+# ❌ BAD - N+1 queries (1 for tasks + N for users)
+tasks = await db.execute(select(Task))
+for task in tasks.scalars():
+    user = await db.execute(select(User).where(User.id == task.user_id))
+    task.owner = user.scalar_one()  # N queries
+
+# ✅ GOOD - Single query with JOIN
+from sqlalchemy.orm import selectinload
+
+tasks = await db.execute(
+    select(Task).options(selectinload(Task.owner))
+)
+# Single query with JOIN, all data loaded
+```
+
+**Enforcement:**
+- Error & Reliability Architect advises on N+1 issues (detected via query logging)
+- Test Strategy Architect requires performance tests for endpoints returning lists
+- Integration Orchestrator validates query count in integration tests
+
+#### Resource Cleanup Guarantees
+
+**Database Connections:**
+- Use context managers (`with` statements) for automatic cleanup
+- FastAPI dependency injection with `yield` ensures cleanup
+
+```python
+async def get_db() -> AsyncSession:
+    """Provide database session with guaranteed cleanup."""
+    async with AsyncSessionLocal() as session:
+        yield session
+        # Automatic commit/rollback and close
+```
+
+**File Handles:**
+- Use `with` statements for file operations
+- Async file operations with `aiofiles`
+
+```python
+# Synchronous file I/O (Phase I)
+with open("data.txt", "r") as f:
+    data = f.read()
+    # File automatically closed
+
+# Async file I/O (Phase II+)
+import aiofiles
+
+async with aiofiles.open("data.txt", "r") as f:
+    data = await f.read()
+    # File automatically closed
+```
+
+**HTTP Connections:**
+- Use `httpx.AsyncClient()` with context manager
+- Connection pooling enabled by default
+
+**Enforcement:**
+- Spec Governance Enforcer blocks PRs with resource leaks (unclosed connections, files)
+- Test Strategy Architect requires resource cleanup verification in tests
+
+#### Performance Testing (Phase II+)
+
+**Load Testing Requirements:**
+- Phase II: Smoke tests (1-10 req/s)
+- Phase IV: Load tests (100 req/s sustained)
+- Phase V: Stress tests (500 req/s peak, auto-scaling validation)
+
+**Tools:**
+- Locust (Python load testing framework)
+- k6 (Grafana's load testing tool)
+
+**Metrics to Track:**
+- Response time percentiles (p50, p95, p99)
+- Error rate (% of requests failing)
+- Throughput (requests per second)
+- Resource utilization (CPU, memory, database connections)
+
+**Enforcement:**
+- Integration Orchestrator runs load tests before Phase IV/V deployments
+- Performance regressions (>20% slower) block deployment
+
+**Rationale:**
+Performance awareness prevents technical debt. Async patterns leverage FastAPI's concurrency model. N+1 query prevention avoids database bottlenecks. Resource cleanup prevents leaks that degrade system stability over time.
+
+**Authority:** FastAPI async best practices (Context7: `/websites/fastapi_tiangolo`), SQLAlchemy async documentation, Python asyncio patterns
 
 ---
 
@@ -491,27 +1226,39 @@ history/
 
 ## Agent & Multi-Agent Governance
 
+**Authoritative Source:** AGENTS.md defines the complete multi-agent architecture specification including detailed agent responsibilities, blocking conditions, and skill ownership. This section provides constitutional summaries aligned with AGENTS.md.
+
+**Cross-Reference:** @AGENTS.md for complete agent specifications, execution order, and enforcement protocols.
+
 ### Agent Categories
 
 Agents are classified into four categories with distinct authorities:
 
 **Governance Agents (Blocking Authority):**
-- **Spec Governance Enforcer:** Blocks if no approved specification exists
-- **Test Strategy Architect:** Blocks if TDD cycle not followed or coverage insufficient
+- **Spec Governance Enforcer:** Blocks if no approved specification exists, specification violates constitutional principles, implementation deviates from approved spec, or ADRs missing for significant decisions
+- **Test Strategy Architect:** Blocks if tests not written before implementation, TDD cycle violated (code before tests), test coverage below minimum thresholds, or critical paths lack tests
+- **Skills:** None (governance agents validate process, do not own operational skills)
 
 **Domain Agents (Blocking Authority):**
-- **Domain Guardian (Generic):** Blocks if domain boundaries violated (domain-agnostic, configurable)
-- **Core Todo Domain:** Blocks if Task domain invariants broken (Todo-specific enforcement)
+- **Domain Guardian (Generic):** Blocks if domain boundaries violated (infrastructure in domain), domain invariants broken, invalid state transitions detected, or domain pollution detected (domain-agnostic, configurable for any business domain)
+- **Core Todo Domain:** Blocks if Task domain boundaries violated, Task invariants broken, or invalid Task state transitions (Todo-specific enforcement, specialization of Domain Guardian)
+- **Skills:** None (reasoning agents, no operational skills)
 
 **Design/Guidance Agents (Advisory):**
-- **Error & Reliability Architect:** Advises on error handling, resilience patterns (no blocking authority)
-- **Better Auth Guardian:** Blocks if security requirements not met (authentication/authorization only)
+- **Error & Reliability Architect:** Advises on error handling, resilience patterns, observability strategies (no blocking authority, provides recommendations only)
+- **Skills:** None (design agents define contracts, do not own operational skills)
 
 **Operational Agents (Variable Authority):**
-- **Python Backend Architect:** Implements application services (can be blocked by governance/domain agents)
-- **Next.js Frontend Architect:** Implements UI components (can be blocked by governance agents)
-- **Data & Schema Guardian:** Blocks if schema conflicts with domain model or migration lacks rollback
-- **Integration Orchestrator:** Blocks if integration tests fail or cross-layer contracts violated
+- **Better Auth Guardian:** Blocks if critical security issues detected (hardcoded secrets, disabled CSRF), session handling violates Better Auth security patterns, or auth flows have security gaps; warns for high-severity issues (user discretion to proceed)
+  - **Skills:** 1 skill (`validate-better-auth-security`)
+- **Python Backend Architect:** Implements application services (can be blocked by Domain Guardian if violates domain boundaries, Integration Orchestrator if integration fails, Test Strategy Architect if tests missing)
+  - **Skills:** 3 skills (`validate-api-contracts`, `generate-api-documentation`, `check-authorization-coverage`)
+- **Next.js Frontend Architect:** Implements UI components (can be blocked by Spec Governance if no approved spec, Integration Orchestrator if integration fails, Test Strategy Architect if tests missing)
+  - **Skills:** 1 skill (`verify-nextjs-16-patterns`)
+- **Data & Schema Guardian:** Blocks if schema conflicts with domain model, migration has no rollback path, or migration causes data loss without approval
+  - **Skills:** 4 skills (`generate-migration`, `execute-migration-rollback`, `validate-schema-alignment`, `verify-data-integrity`)
+- **Integration Orchestrator:** Blocks if cross-layer contract violations detected, integration tests fail, or required agent skipped in workflow
+  - **Skills:** 6 skills (`coordinate-agent-sequence`, `validate-integration-points`, `execute-e2e-tests`, `aggregate-workflow-results`, `validate-error-propagation`, `validate-test-coverage`)
 
 ### Agent Invocation Order
 
@@ -548,19 +1295,35 @@ Agents execute sequentially following CrewAI Process.sequential pattern:
 Skills represent repeatable operational workflows owned by Operational Agents only.
 
 **Current Skill Distribution:**
+
+- **Better Auth Guardian:** 1 skill
+  - validate-better-auth-security (Security audit of Better Auth implementations using Context7 MCP)
+
+- **Python Backend Architect:** 3 skills
+  - validate-api-contracts (Verify API endpoints match OpenAPI schema using automated contract testing)
+  - generate-api-documentation (Auto-generate comprehensive API documentation from route definitions and Pydantic models)
+  - check-authorization-coverage (Ensure all protected API endpoints verify permissions and authorization using Security() dependencies)
+
+- **Next.js Frontend Architect:** 1 skill
+  - verify-nextjs-16-patterns (Validate Next.js code patterns against Next.js 16 best practices using Context7 MCP)
+
 - **Data & Schema Guardian:** 4 skills
-  - generate-migration (Alembic migrations from domain changes)
-  - execute-migration-rollback (safe rollback with data preservation)
-  - validate-schema-alignment (verify schema aligns with domain model)
-  - verify-data-integrity (validate data consistency after migrations)
+  - generate-migration (Generate Alembic migrations from domain changes)
+  - execute-migration-rollback (Safely rollback migrations with data preservation)
+  - validate-schema-alignment (Verify schema aligns with domain model)
+  - verify-data-integrity (Validate data consistency after migrations)
 
-- **Integration Orchestrator:** 4 skills
-  - coordinate-agent-sequence (execute multi-agent workflows in correct order)
-  - validate-integration-points (verify contracts between system layers)
-  - execute-e2e-tests (run integration and E2E tests)
-  - aggregate-workflow-results (collect and summarize workflow results)
+- **Integration Orchestrator:** 6 skills
+  - coordinate-agent-sequence (Execute multi-agent workflows in correct dependency order)
+  - validate-integration-points (Verify contracts between system layers)
+  - execute-e2e-tests (Run integration and E2E tests)
+  - aggregate-workflow-results (Collect and summarize workflow results)
+  - validate-error-propagation (Validate error handling and propagation across all system layers using Clean Architecture and DDD best practices)
+  - validate-test-coverage (Validate test coverage against minimum thresholds using pytest-cov and coverage.py)
 
-- **All Other Agents:** 0 skills (reasoning/coordination only, no operational workflows)
+- **Governance, Design/Guidance, and Domain Agents:** 0 skills (reasoning/coordination only, no operational workflows)
+
+**Total Skills:** 15 across 5 operational agents (Better Auth Guardian, Python Backend Architect, Next.js Frontend Architect, Data & Schema Guardian, Integration Orchestrator)
 
 **Skill Governance Rules:**
 1. Skills ONLY owned by Operational Agents (not governance, design, or domain agents)
@@ -934,4 +1697,4 @@ This Constitution is the **authoritative governance document** for all phases of
 
 ---
 
-**Version:** 1.0.0 | **Ratified:** 2025-01-02 | **Last Amended:** 2025-01-02
+**Version:** 1.1.1 | **Ratified:** 2025-01-02 | **Last Amended:** 2026-01-10
