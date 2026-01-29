@@ -7,6 +7,7 @@ Phase 2 Backend - Full-Stack Todo Application.
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -57,8 +58,9 @@ OPENAPI_TAGS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager for startup/shutdown events."""
-    # Startup
-    await init_db()
+    # Startup - skip init_db in production (use Alembic migrations instead)
+    if os.getenv("ENVIRONMENT") != "production":
+        await init_db()
     yield
     # Shutdown
     await close_db()
@@ -110,7 +112,6 @@ All errors follow a consistent format:
 )
 
 # CORS middleware - read origins from environment for production
-import os
 cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
 cors_origins = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
