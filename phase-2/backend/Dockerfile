@@ -16,8 +16,7 @@ COPY pyproject.toml ./
 
 # Install dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir . && \
-    pip install --no-cache-dir python-dotenv
+    pip install --no-cache-dir .
 
 # Production stage
 FROM python:3.13-slim as production
@@ -36,8 +35,10 @@ WORKDIR $HOME/app
 COPY --from=builder /usr/local/lib/python3.13/site-packages /home/user/.local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin /home/user/.local/bin
 
-# Copy application code
+# Copy application code and migrations
 COPY --chown=user src/ ./src/
+COPY --chown=user migrations/ ./migrations/
+COPY --chown=user alembic.ini ./
 
 # Expose port 7860 (Hugging Face Spaces default)
 EXPOSE 7860
