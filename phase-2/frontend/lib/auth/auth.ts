@@ -12,7 +12,11 @@
 
 import { betterAuth } from "better-auth";
 import { jwt } from "better-auth/plugins";
-import { Pool } from "pg";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+// Enable WebSocket for Neon serverless in Node.js environments (Vercel)
+neonConfig.webSocketConstructor = ws;
 
 /**
  * Better Auth server instance.
@@ -36,7 +40,6 @@ export const auth = betterAuth({
 
   database: new Pool({
     connectionString: process.env["DATABASE_URL"],
-    ssl: process.env["NODE_ENV"] === "production" ? { rejectUnauthorized: false } : undefined,
   }),
 
   emailAndPassword: {
