@@ -6,6 +6,7 @@
  * T133: [US6] Apply filters to task list
  */
 
+import { Suspense } from "react";
 import { Metadata } from "next";
 import { TasksPageClient } from "./tasks-page-client";
 
@@ -15,5 +16,9 @@ export const metadata: Metadata = {
 };
 
 export default function TasksPage() {
-  return <TasksPageClient />;
+  return (
+    <Suspense fallback={<div className="animate-pulse h-96 bg-neutral-100 dark:bg-neutral-800 rounded-lg" />}>
+      <TasksPageClient />
+    </Suspense>
+  );
 }

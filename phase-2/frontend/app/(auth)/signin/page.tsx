@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { SigninForm } from "@/components/auth/signin-form";
@@ -21,7 +22,9 @@ export default function SigninPage() {
       </div>
 
       {/* Form */}
-      <SigninForm />
+      <Suspense fallback={<div className="animate-pulse h-64 bg-neutral-100 dark:bg-neutral-800 rounded-lg" />}>
+        <SigninForm />
+      </Suspense>
 
       {/* Forgot Password */}
       <div className="text-center">
