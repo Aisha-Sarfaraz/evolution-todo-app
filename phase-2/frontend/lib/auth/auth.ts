@@ -55,8 +55,11 @@ export const auth = betterAuth({
 
   plugins: [
     jwt({
-      // JWT tokens will be signed with asymmetric keys
-      // JWKS endpoint will expose public keys at /api/auth/jwks
+      jwks: {
+        // Disable private key encryption to avoid "Failed to decrypt private key"
+        // errors when BETTER_AUTH_SECRET changes between deployments
+        disablePrivateKeyEncryption: true,
+      },
     }),
   ],
 
