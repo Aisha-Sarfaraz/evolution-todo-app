@@ -1,45 +1,62 @@
 /**
- * ChatKit-compatible API route that proxies to our Hugging Face backend.
- * This server-side route allows ChatKit to work without browser-side issues.
+ * ChatKit-compatible API route that proxies to the Hugging Face backend.
+ * Passes through the raw request body without modification.
  */
 
 import { NextRequest } from "next/server";
 
-const BACKEND_URL = process.env["CHAT_BACKEND_URL"] || process.env["NEXT_PUBLIC_CHAT_API_URL"] || "https://aishayousuf-todo-chatbot-api.hf.space";
+const BACKEND_URL =
+  process.env["CHAT_BACKEND_URL"] ||
+  process.env["NEXT_PUBLIC_CHAT_API_URL"] ||
+  "https://aishayousuf-todo-chatbot-api.hf.space";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Read raw body to pass through as-is
+    const rawBody = await request.text();
 
-    // Get user_id from the request body or authorization header
-    const authHeader = request.headers.get("authorization");
-    const userId = body.user_id || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "anonymous");
+    // Try to inject user_id if body is JSON
+    let forwardBody = rawBody;
+    let userId = "anonymous";
+    try {
+      const parsed = JSON.parse(rawBody);
+      const authHeader = request.headers.get("authorization");
+      userId =
+        parsed.user_id ||
+        (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "anonymous");
+      parsed.user_id = userId;
+      forwardBody = JSON.stringify(parsed);
+    } catch {
+      // Not JSON - forward as-is
+    }
 
-    // Forward to our backend
+    console.log("[/api/chat] Forwarding to:", `${BACKEND_URL}/api/chatkit`);
+    console.log("[/api/chat] Body preview:", forwardBody.slice(0, 500));
+
     const response = await fetch(`${BACKEND_URL}/api/chatkit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${userId}`,
+        Authorization: `Bearer ${userId}`,
       },
-      body: JSON.stringify({
-        ...body,
-        user_id: userId,
-      }),
+      body: forwardBody,
     });
 
+    console.log("[/api/chat] Backend status:", response.status);
+
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({ error: "Backend request failed" }),
-        { status: response.status, headers: { "Content-Type": "application/json" } }
-      );
+      const errorText = await response.text();
+      console.error("[/api/chat] Backend error:", errorText);
+      return new Response(errorText, {
+        status: response.status,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // Stream the SSE response back
+    // Stream the SSE response back to the client
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
-    // Pipe the response
     const reader = response.body?.getReader();
     if (reader) {
       (async () => {
@@ -59,11 +76,11 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
       },
     });
   } catch (error) {
-    console.error("Chat API error:", error);
+    console.error("[/api/chat] Error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
