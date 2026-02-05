@@ -1,15 +1,24 @@
-"""ChatKit-compatible SSE chat endpoint.
+"""ChatKit-compatible endpoint using the openai-chatkit Python SDK.
 
-Accepts ChatKit's request format and returns Server-Sent Events (SSE) stream.
-This endpoint bridges ChatKit's frontend protocol with the existing ChatService.
+Uses ChatKitServer to handle the exact protocol the ChatKit frontend expects.
 """
 
-import json
 import logging
-from typing import Any, AsyncGenerator, Optional
+import uuid
+from collections.abc import AsyncIterator
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
-from sse_starlette.sse import EventSourceResponse
+from fastapi import APIRouter, Request, Response
+from chatkit.server import ChatKitServer, StreamingResult, NonStreamingResult
+from chatkit.store import Store
+from chatkit.types import (
+    ThreadMetadata,
+    UserMessageItem,
+    AssistantMessageItem,
+    ThreadItemDoneEvent,
+    ThreadItemAddedEvent,
+    Page,
+)
 
 from src.database import async_session_maker
 from src.services.chat_service import ChatService
@@ -19,139 +28,181 @@ logger = logging.getLogger("chatkit.route")
 router = APIRouter(tags=["chatkit"])
 
 
-async def stream_response(
-    user_id: str,
-    message: str,
-    thread_id: Optional[str] = None,
-) -> AsyncGenerator[dict, None]:
-    """Run ChatService and yield SSE events with its own session."""
-    async with async_session_maker() as session:
-        try:
-            service = ChatService(session=session)
-            result = await service.process_message(
-                user_id=user_id,
-                message=message,
-                conversation_id=thread_id,
-            )
+# ============================================================================
+# In-memory Store for thread/item persistence
+# ============================================================================
 
-            # Yield the full response as a single content event
-            yield {
-                "event": "message",
-                "data": json.dumps({"content": result["response"]}),
-            }
+class InMemoryStore(Store[dict]):
+    """Simple in-memory store for ChatKit threads and items."""
 
-            # Signal done with thread_id
-            yield {
-                "event": "message",
-                "data": json.dumps({
-                    "done": True,
-                    "thread_id": result["conversation_id"],
-                }),
-            }
+    def __init__(self) -> None:
+        self._threads: dict[str, ThreadMetadata] = {}
+        self._items: dict[str, list] = {}  # thread_id -> list of items
 
-        except Exception as e:
-            logger.error("ChatKit stream error: %s", e, exc_info=True)
-            await session.rollback()
-            yield {
-                "event": "message",
-                "data": json.dumps({"error": str(e)}),
-            }
+    def generate_thread_id(self, context: dict) -> str:
+        return str(uuid.uuid4())
 
+    def generate_item_id(self, item_type: str, thread: ThreadMetadata, context: dict) -> str:
+        return str(uuid.uuid4())
+
+    async def load_thread(self, thread_id: str, context: dict) -> ThreadMetadata:
+        if thread_id in self._threads:
+            return self._threads[thread_id]
+        raise KeyError(f"Thread {thread_id} not found")
+
+    async def load_threads(self, after: str | None, limit: int, order: str, context: dict) -> Page:
+        threads = list(self._threads.values())
+        return Page(data=threads, has_more=False)
+
+    async def load_thread_items(self, thread_id: str, after: str | None, limit: int, order: str, context: dict) -> Page:
+        items = self._items.get(thread_id, [])
+        return Page(data=items, has_more=False)
+
+    async def load_item(self, thread_id: str, item_id: str, context: dict):
+        for item in self._items.get(thread_id, []):
+            if item.id == item_id:
+                return item
+        raise KeyError(f"Item {item_id} not found")
+
+    async def create_thread(self, thread: ThreadMetadata, context: dict) -> None:
+        self._threads[thread.id] = thread
+        self._items[thread.id] = []
+
+    async def update_thread(self, thread_id: str, thread: ThreadMetadata, context: dict) -> None:
+        self._threads[thread_id] = thread
+
+    async def delete_thread(self, thread_id: str, context: dict) -> None:
+        self._threads.pop(thread_id, None)
+        self._items.pop(thread_id, None)
+
+    async def add_thread_item(self, thread_id: str, item: Any, context: dict) -> None:
+        if thread_id not in self._items:
+            self._items[thread_id] = []
+        self._items[thread_id].append(item)
+
+    async def update_thread_item(self, thread_id: str, item_id: str, item: Any, context: dict) -> None:
+        items = self._items.get(thread_id, [])
+        for i, existing in enumerate(items):
+            if existing.id == item_id:
+                items[i] = item
+                return
+
+    async def delete_thread_item(self, thread_id: str, item_id: str, context: dict) -> None:
+        items = self._items.get(thread_id, [])
+        self._items[thread_id] = [it for it in items if it.id != item_id]
+
+    async def delete_attachment(self, attachment_id: str, context: dict) -> None:
+        pass
+
+    async def load_attachment(self, attachment_id: str, context: dict):
+        raise KeyError(f"Attachment {attachment_id} not found")
+
+
+# ============================================================================
+# ChatKit Server Implementation
+# ============================================================================
+
+store = InMemoryStore()
+
+
+class TodoChatKitServer(ChatKitServer[dict]):
+    """ChatKit server that delegates to our ChatService."""
+
+    async def respond(
+        self,
+        thread: ThreadMetadata,
+        input_user_message: UserMessageItem | None,
+        context: dict,
+    ) -> AsyncIterator:
+        """Process user message and yield ChatKit events."""
+        if not input_user_message:
+            return
+
+        user_text = ""
+        for part in input_user_message.content:
+            if hasattr(part, "text"):
+                user_text += part.text
+
+        if not user_text:
+            return
+
+        user_id = context.get("user_id", "anonymous")
+
+        # Call our existing ChatService
+        async with async_session_maker() as session:
+            try:
+                service = ChatService(session=session)
+                result = await service.process_message(
+                    user_id=user_id,
+                    message=user_text,
+                    conversation_id=thread.id,
+                )
+
+                # Create assistant message item
+                assistant_item = AssistantMessageItem(
+                    id=self.store.generate_item_id("message", thread, context),
+                    type="message",
+                    role="assistant",
+                    content=[{"type": "output_text", "text": result["response"]}],
+                    status="completed",
+                )
+
+                yield ThreadItemAddedEvent(type="thread.item.added", item=assistant_item)
+                yield ThreadItemDoneEvent(type="thread.item.done", item=assistant_item)
+
+            except Exception as e:
+                logger.error("ChatKit respond error: %s", e, exc_info=True)
+                await session.rollback()
+
+                error_item = AssistantMessageItem(
+                    id=self.store.generate_item_id("message", thread, context),
+                    type="message",
+                    role="assistant",
+                    content=[{"type": "output_text", "text": f"Sorry, I encountered an error: {e}"}],
+                    status="completed",
+                )
+                yield ThreadItemAddedEvent(type="thread.item.added", item=error_item)
+                yield ThreadItemDoneEvent(type="thread.item.done", item=error_item)
+
+
+chatkit_server = TodoChatKitServer(store=store)
+
+
+# ============================================================================
+# FastAPI Endpoint
+# ============================================================================
 
 @router.post("/api/chatkit")
-async def chatkit_chat(request: Request):
-    """ChatKit-compatible SSE chat endpoint.
+async def chatkit_endpoint(request: Request) -> Response:
+    """ChatKit-compatible endpoint using the official SDK."""
+    raw_body = await request.body()
 
-    Accepts ChatKit's message format and returns SSE stream.
-    Very permissive parsing to handle various ChatKit formats.
-    """
-    # Parse raw JSON to see exactly what ChatKit sends
-    try:
-        raw_body = await request.body()
-        logger.info(f"ChatKit raw body: {raw_body.decode('utf-8', errors='replace')[:1000]}")
-        body = json.loads(raw_body)
-    except Exception as e:
-        logger.error(f"Failed to parse request body: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid JSON body: {e}",
+    # Extract user_id from auth header
+    auth_header = request.headers.get("authorization", "")
+    user_id = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else "anonymous"
+
+    context = {"user_id": user_id}
+
+    logger.info("ChatKit request from user %s, body: %s", user_id, raw_body[:500])
+
+    result = await chatkit_server.process(raw_body, context)
+
+    if isinstance(result, StreamingResult):
+        async def event_stream():
+            async for chunk in result:
+                yield chunk
+
+        from starlette.responses import StreamingResponse
+        return StreamingResponse(
+            event_stream(),
+            media_type=result.content_type,
+            headers=dict(result.headers) if result.headers else {},
         )
-
-    # Extract messages - try various possible field names
-    messages = body.get("messages") or body.get("Messages") or []
-
-    # If messages is empty, check if there's a single message/prompt field
-    if not messages:
-        single_message = body.get("message") or body.get("prompt") or body.get("input")
-        if single_message:
-            if isinstance(single_message, str):
-                messages = [{"role": "user", "content": single_message}]
-            elif isinstance(single_message, dict):
-                messages = [single_message]
-
-    if not messages:
-        logger.error(f"No messages found in body: {body}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No messages provided",
+    elif isinstance(result, NonStreamingResult):
+        return Response(
+            content=result.body,
+            media_type=result.content_type,
+            headers=dict(result.headers) if result.headers else {},
         )
-
-    # Get user_id from various possible field names
-    user_id = (
-        body.get("user_id") or
-        body.get("userId") or
-        body.get("user") or
-        "anonymous"
-    )
-
-    # Get thread_id from various possible field names
-    thread_id = (
-        body.get("thread_id") or
-        body.get("threadId") or
-        body.get("thread") or
-        body.get("conversation_id") or
-        body.get("conversationId")
-    )
-
-    # Extract the last message (find last user message if possible)
-    last_msg = None
-    for msg in reversed(messages):
-        if isinstance(msg, dict):
-            role = msg.get("role", "").lower()
-            if role in ("user", "human", ""):
-                last_msg = msg
-                break
-
-    # If no user message found, just use the last message
-    if not last_msg and messages:
-        last_msg = messages[-1]
-
-    if not last_msg:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid message found",
-        )
-
-    # Extract content from message
-    if isinstance(last_msg, dict):
-        content = last_msg.get("content") or last_msg.get("text") or last_msg.get("message") or ""
-    elif isinstance(last_msg, str):
-        content = last_msg
     else:
-        content = str(last_msg)
-
-    if not content:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Message content is empty",
-        )
-
-    logger.info(f"Processing message for user {user_id}: {content[:100]}...")
-
-    return EventSourceResponse(
-        stream_response(
-            user_id=user_id,
-            message=content,
-            thread_id=thread_id,
-        ),
-    )
+        return Response(content="Internal error", status_code=500)
