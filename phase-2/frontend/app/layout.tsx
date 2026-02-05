@@ -75,6 +75,12 @@ export default function RootLayout({
       className={`${sora.variable} ${dmSans.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          src="https://cdn.platform.openai.com/deployments/chatkit/chatkit.js"
+          async
+        />
+      </head>
       <body className="font-sans antialiased min-h-screen">
         <Providers>{children}</Providers>
       </body>

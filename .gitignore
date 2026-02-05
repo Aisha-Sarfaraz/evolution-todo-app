@@ -105,3 +105,6 @@ phase-2/frontend/.env.*
 
 # Windows artifacts
 nul
+
+# Agent configuration (local only)
+.agents/

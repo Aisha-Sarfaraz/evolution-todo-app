@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { signOut, useSession } from "@/lib/auth/better-auth";
 import { clsx } from "clsx";
+import { FloatingChat } from "@/components/chat/FloatingChat";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -265,6 +266,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* AI Chat Widget (Phase 3 chatbot embedded via iframe) */}
+      <FloatingChat />
     </div>
   );
 }

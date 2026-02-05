@@ -12,7 +12,7 @@ export interface EmptyStateProps {
     label: string;
     onClick: () => void;
     variant?: "primary" | "secondary" | "outline";
-  };
+  } | undefined;
   className?: string;
 }
 
@@ -133,7 +133,7 @@ export function EmptyState({
 export function EmptyTasksState({
   onCreateTask,
 }: {
-  onCreateTask?: () => void;
+  onCreateTask?: (() => void) | undefined;
 }) {
   return (
     <EmptyState
@@ -156,8 +156,8 @@ export function EmptySearchState({
   searchTerm,
   onClearSearch,
 }: {
-  searchTerm?: string;
-  onClearSearch?: () => void;
+  searchTerm?: string | undefined;
+  onClearSearch?: (() => void) | undefined;
 }) {
   return (
     <EmptyState
@@ -186,9 +186,9 @@ export function ErrorState({
   description = "We encountered an error while loading. Please try again.",
   onRetry,
 }: {
-  title?: string;
-  description?: string;
-  onRetry?: () => void;
+  title?: string | undefined;
+  description?: string | undefined;
+  onRetry?: (() => void) | undefined;
 }) {
   return (
     <EmptyState

@@ -64,6 +64,7 @@ export function Modal({
       document.addEventListener("keydown", handleKeyDown);
       return () => document.removeEventListener("keydown", handleKeyDown);
     }
+    return undefined;
   }, [isOpen, handleKeyDown]);
 
   // Focus trap and scroll lock
@@ -87,6 +88,7 @@ export function Modal({
         }
       };
     }
+    return undefined;
   }, [isOpen]);
 
   if (!isOpen) return null;
