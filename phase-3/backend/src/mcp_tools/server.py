@@ -21,19 +21,19 @@ from mcp.server.fastmcp import FastMCP
 # Import Category model to ensure SQLAlchemy can resolve Task's foreign key
 from src.models.category import Category  # noqa: F401
 
-from src.mcp.tools.task_tools import (
+from src.mcp_tools.tools.task_tools import (
     create_task,
     complete_task,
     delete_task,
     list_tasks,
     update_task,
 )
-from src.mcp.tools.recurrence_tools import (
+from src.mcp_tools.tools.recurrence_tools import (
     create_recurrence,
     remove_recurrence,
     update_recurrence,
 )
-from src.mcp.tools.reminder_tools import set_due_date
+from src.mcp_tools.tools.reminder_tools import set_due_date
 
 logger = logging.getLogger("mcp.server")
 
@@ -296,7 +296,7 @@ def run_mcp_server() -> None:
     port = int(os.getenv("MCP_PORT", "8001"))
     host = os.getenv("MCP_HOST", "localhost")
     uvicorn.run(
-        "src.mcp.server:get_mcp_app",
+        "src.mcp_tools.server:get_mcp_app",
         factory=True,
         host=host,
         port=port,

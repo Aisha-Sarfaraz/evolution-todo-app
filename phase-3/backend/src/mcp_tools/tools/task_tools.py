@@ -71,7 +71,7 @@ async def create_task(
         return f"Created task: '{title}' (Priority: {priority}, ID: {task.id})"
 
     # Use session maker directly with async with
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         task = Task(
             id=uuid4(),
@@ -183,7 +183,7 @@ async def list_tasks(
             _session, user_id, status, priority, search, due_date_from, due_date_to
         )
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _list_tasks_impl(
             session, user_id, status, priority, search, due_date_from, due_date_to
@@ -261,7 +261,7 @@ async def update_task(
     if _session is not None:
         return await _update_task_impl(_session, task_id, user_id, title, description, priority)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _update_task_impl(session, task_id, user_id, title, description, priority)
 
@@ -311,7 +311,7 @@ async def complete_task(
     if _session is not None:
         return await _complete_task_impl(_session, task_id, user_id)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _complete_task_impl(session, task_id, user_id)
 
@@ -360,6 +360,6 @@ async def delete_task(
     if _session is not None:
         return await _delete_task_impl(_session, task_id, user_id)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _delete_task_impl(session, task_id, user_id)

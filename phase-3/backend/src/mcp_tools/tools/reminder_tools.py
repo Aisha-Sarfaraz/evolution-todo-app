@@ -107,6 +107,6 @@ async def set_due_date(
     if _session is not None:
         return await _set_due_date_impl(_session, task_id, user_id, due_date, reminder_time)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _set_due_date_impl(session, task_id, user_id, due_date, reminder_time)

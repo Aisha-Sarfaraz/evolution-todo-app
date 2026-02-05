@@ -27,7 +27,7 @@ async def check_reminders() -> None:
     Scheduler job that runs every minute to find reminders
     where reminder_time <= now and notification_sent = False.
     """
-    from src.mcp.database import get_mcp_session
+    from src.mcp_tools.database import get_mcp_session
 
     async for session in get_mcp_session():
         try:

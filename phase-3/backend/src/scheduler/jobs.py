@@ -26,7 +26,7 @@ async def check_recurrence() -> None:
     creates a new task instance copying the original task's details,
     and updates next_occurrence.
     """
-    from src.mcp.database import get_mcp_session
+    from src.mcp_tools.database import get_mcp_session
 
     async for session in get_mcp_session():
         try:

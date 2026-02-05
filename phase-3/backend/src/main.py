@@ -22,8 +22,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.agent.config import configure_agent_client
 from src.api.routes.chatkit import router as chatkit_router
 from src.logging_config import configure_logging
-from src.mcp.database import close_mcp_db
-from src.mcp.server import mcp
+from src.mcp_tools.database import close_mcp_db
+from src.mcp_tools.server import mcp
 
 # Configure structured logging
 configure_logging(

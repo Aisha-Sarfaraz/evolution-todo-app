@@ -114,7 +114,7 @@ async def create_recurrence(
             _session, task_id, user_id, frequency, interval, days_of_week, day_of_month, end_date_str
         )
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _create_recurrence_impl(
             session, task_id, user_id, frequency, interval, days_of_week, day_of_month, end_date_str
@@ -189,7 +189,7 @@ async def update_recurrence(
     if _session is not None:
         return await _update_recurrence_impl(_session, task_id, user_id, frequency, interval, end_date_str)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _update_recurrence_impl(session, task_id, user_id, frequency, interval, end_date_str)
 
@@ -233,6 +233,6 @@ async def remove_recurrence(
     if _session is not None:
         return await _remove_recurrence_impl(_session, task_id, user_id)
 
-    from src.mcp.database import get_mcp_session_maker
+    from src.mcp_tools.database import get_mcp_session_maker
     async with get_mcp_session_maker()() as session:
         return await _remove_recurrence_impl(session, task_id, user_id)
