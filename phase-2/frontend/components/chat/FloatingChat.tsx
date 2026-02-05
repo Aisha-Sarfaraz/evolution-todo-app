@@ -23,9 +23,8 @@ export function FloatingChat() {
     userIdRef.current = userId;
   }, [userId]);
 
-  const backendUrl =
-    process.env["NEXT_PUBLIC_CHAT_API_URL"] || "http://localhost:8002";
-  const chatUrl = `${backendUrl}/api/chatkit`;
+  // Use local API route that proxies to the backend
+  const chatUrl = "/api/chat";
 
   const { control } = useChatKit({
     api: {
