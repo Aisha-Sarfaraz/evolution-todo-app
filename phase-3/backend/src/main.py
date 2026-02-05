@@ -1,6 +1,6 @@
-"""Phase III FastAPI application entry point for Hugging Face Spaces deployment.
+"""Phase III FastAPI application entry point.
 
-Simplified chat-only backend for AI-powered conversational todo management.
+Chat backend with embedded MCP server for AI-powered task management.
 """
 
 import logging
@@ -23,6 +23,7 @@ from src.agent.config import configure_agent_client
 from src.api.routes.chatkit import router as chatkit_router
 from src.logging_config import configure_logging
 from src.mcp.database import close_mcp_db
+from src.mcp.server import mcp
 
 # Configure structured logging
 configure_logging(
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     configure_agent_client()
     logger.info("Agent client configured")
+    logger.info("MCP server embedded at /mcp")
 
     yield
 
@@ -49,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="Todo AI Chatbot API",
-    description="Phase III - Conversational todo management via AI chat",
+    description="Phase III - Conversational todo management via AI chat with MCP",
     version="3.0.0",
     lifespan=lifespan,
 )
@@ -64,9 +66,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Register chatkit router only
+# Register chatkit router
 app.include_router(chatkit_router)
+
+# Mount MCP server at /mcp
+mcp_app = mcp.streamable_http_app()
+app.mount("/mcp", mcp_app)
 
 
 @app.get("/health")
@@ -79,6 +84,7 @@ async def health_check() -> dict:
         "service": "todo-chatbot-api",
         "version": "3.0.0",
         "timestamp": datetime.now(tz.utc).isoformat(),
+        "mcp": "embedded",
     }
 
 
@@ -86,7 +92,8 @@ async def health_check() -> dict:
 async def root() -> dict:
     """Root endpoint."""
     return {
-        "message": "Todo AI Chatbot API",
+        "message": "Todo AI Chatbot API with MCP",
         "docs": "/docs",
         "health": "/health",
+        "mcp": "/mcp",
     }

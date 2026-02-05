@@ -192,9 +192,14 @@ class ChatService:
         # Disable tracing to avoid OpenAI API key issues with OpenRouter
         set_tracing_disabled(True)
 
-        mcp_port = os.getenv("MCP_PORT", "8001")
-        mcp_host = os.getenv("MCP_HOST", "localhost")
-        mcp_url = f"http://{mcp_host}:{mcp_port}/mcp"
+        # MCP URL - use embedded server by default (same app at /mcp)
+        # For Hugging Face Spaces, the app runs on port 7860
+        # For local dev with separate MCP server, set MCP_PORT and MCP_HOST
+        mcp_url = os.getenv("MCP_URL")
+        if not mcp_url:
+            mcp_port = os.getenv("MCP_PORT") or os.getenv("PORT", "7860")
+            mcp_host = os.getenv("MCP_HOST", "localhost")
+            mcp_url = f"http://{mcp_host}:{mcp_port}/mcp"
 
         # Build system prompt with user context
         system_prompt = SYSTEM_PROMPT
