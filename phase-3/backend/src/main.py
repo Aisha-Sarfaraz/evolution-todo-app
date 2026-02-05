@@ -56,8 +56,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+# CORS configuration - allow Vercel frontend and localhost
+default_origins = ",".join([
+    "http://localhost:3000",
+    "https://frontend-sable-seven-72.vercel.app",
+    "https://frontend-aishas-projects-cb1df1f3.vercel.app",
+    "https://frontend-aisha-sarfaraz-aishas-projects-cb1df1f3.vercel.app",
+])
+allowed_origins = os.getenv("ALLOWED_ORIGINS", default_origins).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
