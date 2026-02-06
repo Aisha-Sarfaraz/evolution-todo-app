@@ -1,29 +1,59 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Component, type ReactNode } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { useSession } from "@/lib/auth/better-auth";
 
-/**
- * Floating chat widget that renders the Phase 3 AI chatbot directly
- * inside the Phase 2 web app. Connects to the Phase 3 backend SSE endpoint
- * for AI-powered task management via natural language.
- *
- * All chatbot backend logic lives in Phase 3 (port 8002).
- * This component is the only Phase 2 file needed to surface the chatbot.
- */
+// Error boundary to prevent ChatKit crashes from unmounting the whole component
+class ChatErrorBoundary extends Component<
+  { children: ReactNode; onError?: (error: Error) => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; onError?: (error: Error) => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error) {
+    console.error("[ChatKit] React error boundary caught:", error);
+    this.props.onError?.(error);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-full p-4 text-center text-sm text-neutral-500">
+          <div>
+            <p>Chat encountered an error.</p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="mt-2 px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
   const { data: session } = useSession();
 
   const userId = session?.user?.id;
-  // Use ref to always have current userId in the fetch callback
   const userIdRef = useRef(userId);
+  // Track if we ever had a valid session (prevents unmount on brief refresh)
+  const hadSessionRef = useRef(false);
+
   useEffect(() => {
     userIdRef.current = userId;
+    if (userId) hadSessionRef.current = true;
   }, [userId]);
 
-  // Use local API route that proxies to the backend
   const chatUrl = "/api/chat";
 
   const { control } = useChatKit({
@@ -31,8 +61,6 @@ export function FloatingChat() {
       url: chatUrl,
       domainKey: process.env["NEXT_PUBLIC_OPENAI_DOMAIN_KEY"] as string,
       fetch: async (input, init) => {
-        // Inject user_id into the request body for the backend
-        // Use ref to get current userId, not stale closure value
         const currentUserId = userIdRef.current;
         const body: BodyInit | null = init?.body ?? null;
         let modifiedBody = body;
@@ -56,6 +84,12 @@ export function FloatingChat() {
           credentials: "include",
         });
       },
+    },
+    onReady: () => {
+      console.log("[ChatKit] Widget ready");
+    },
+    onError: (event: { error: Error }) => {
+      console.error("[ChatKit] Error:", event.error);
     },
     theme: {
       colorScheme: "light",
@@ -94,7 +128,9 @@ export function FloatingChat() {
     },
   });
 
-  if (!session?.user?.id) return null;
+  // Don't render until we've had a session at least once
+  // Use hadSessionRef to prevent unmounting during brief session refreshes
+  if (!userId && !hadSessionRef.current) return null;
 
   return (
     <>
@@ -138,7 +174,9 @@ export function FloatingChat() {
       {/* Chat panel */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 z-[55] w-[400px] h-[550px] rounded-2xl shadow-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
-          <ChatKit control={control} className="h-full w-full" />
+          <ChatErrorBoundary>
+            <ChatKit control={control} className="h-full w-full" />
+          </ChatErrorBoundary>
         </div>
       )}
     </>
