@@ -53,32 +53,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Stream the SSE response back to the client
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
+    // Pass through the backend response with its original content type
+    const contentType = response.headers.get("Content-Type") || "application/json";
 
-    const reader = response.body?.getReader();
-    if (reader) {
-      (async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            await writer.write(value);
+    if (contentType.includes("text/event-stream")) {
+      // Stream the SSE response back to the client
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+
+      const reader = response.body?.getReader();
+      if (reader) {
+        (async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              await writer.write(value);
+            }
+          } finally {
+            await writer.close();
           }
-        } finally {
-          await writer.close();
-        }
-      })();
-    }
+        })();
+      }
 
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
+    } else {
+      // Non-streaming response (threads.list, threads.get_by_id, etc.)
+      const body = await response.text();
+      return new Response(body, {
+        status: response.status,
+        headers: { "Content-Type": contentType },
+      });
+    }
   } catch (error) {
     console.error("[/api/chat] Error:", error);
     return new Response(
