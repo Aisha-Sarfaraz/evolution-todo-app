@@ -97,6 +97,25 @@ class InMemoryStore(Store[dict]):
     async def load_attachment(self, attachment_id: str, context: dict):
         raise KeyError(f"Attachment {attachment_id} not found")
 
+    async def save_thread(self, thread: ThreadMetadata, context: dict) -> None:
+        self._threads[thread.id] = thread
+        if thread.id not in self._items:
+            self._items[thread.id] = []
+
+    async def save_item(self, thread_id: str, item: Any, context: dict) -> None:
+        if thread_id not in self._items:
+            self._items[thread_id] = []
+        # Update existing or append
+        items = self._items[thread_id]
+        for i, existing in enumerate(items):
+            if existing.id == item.id:
+                items[i] = item
+                return
+        items.append(item)
+
+    async def save_attachment(self, attachment: Any, context: dict) -> None:
+        pass
+
 
 # ============================================================================
 # ChatKit Server Implementation
