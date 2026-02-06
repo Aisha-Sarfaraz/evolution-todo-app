@@ -137,6 +137,7 @@ class TodoChatKitServer(ChatKitServer[dict]):
         """Process user message and yield ChatKit events."""
         if not input_user_message:
             return
+            yield  # Make this an async generator even when returning early
 
         user_text = ""
         for part in input_user_message.content:
@@ -145,6 +146,7 @@ class TodoChatKitServer(ChatKitServer[dict]):
 
         if not user_text:
             return
+            yield  # Make this an async generator even when returning early
 
         user_id = context.get("user_id", "anonymous")
 
@@ -200,34 +202,41 @@ chatkit_server = TodoChatKitServer(store=store)
 @router.post("/api/chatkit")
 async def chatkit_endpoint(request: Request) -> Response:
     """ChatKit-compatible endpoint using the official SDK."""
-    raw_body = await request.body()
+    try:
+        raw_body = await request.body()
 
-    # Extract user_id from auth header
-    auth_header = request.headers.get("authorization", "")
-    user_id = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else "anonymous"
+        # Extract user_id from auth header
+        auth_header = request.headers.get("authorization", "")
+        user_id = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else "anonymous"
 
-    context = {"user_id": user_id}
+        context = {"user_id": user_id}
 
-    logger.info("ChatKit request from user %s, body: %s", user_id, raw_body[:500])
+        logger.info("ChatKit request from user %s, body: %s", user_id, raw_body[:500])
 
-    result = await chatkit_server.process(raw_body, context)
+        result = await chatkit_server.process(raw_body, context)
 
-    if isinstance(result, StreamingResult):
-        async def event_stream():
-            async for chunk in result:
-                yield chunk
+        if isinstance(result, StreamingResult):
+            async def event_stream():
+                async for chunk in result:
+                    yield chunk
 
-        from starlette.responses import StreamingResponse
-        return StreamingResponse(
-            event_stream(),
-            media_type=result.content_type,
-            headers=dict(result.headers) if result.headers else {},
-        )
-    elif isinstance(result, NonStreamingResult):
+            from starlette.responses import StreamingResponse
+            return StreamingResponse(
+                event_stream(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+        elif isinstance(result, NonStreamingResult):
+            return Response(
+                content=result.json,
+                media_type="application/json",
+            )
+        else:
+            return Response(content="Internal error", status_code=500)
+    except Exception as e:
+        logger.error("ChatKit endpoint error: %s", e, exc_info=True)
         return Response(
-            content=result.body,
-            media_type=result.content_type,
-            headers=dict(result.headers) if result.headers else {},
+            content=f'{{"error": "{e}"}}',
+            status_code=500,
+            media_type="application/json",
         )
-    else:
-        return Response(content="Internal error", status_code=500)
