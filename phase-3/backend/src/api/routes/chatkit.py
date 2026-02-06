@@ -6,6 +6,7 @@ Uses ChatKitServer to handle the exact protocol the ChatKit frontend expects.
 import logging
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
@@ -157,10 +158,12 @@ class TodoChatKitServer(ChatKitServer[dict]):
                     conversation_id=thread.id,
                 )
 
-                # Create assistant message item
+                now = datetime.now(timezone.utc).isoformat()
                 assistant_item = AssistantMessageItem(
                     id=self.store.generate_item_id("message", thread, context),
-                    type="message",
+                    thread_id=thread.id,
+                    created_at=now,
+                    type="assistant_message",
                     role="assistant",
                     content=[{"type": "output_text", "text": result["response"]}],
                     status="completed",
@@ -173,9 +176,12 @@ class TodoChatKitServer(ChatKitServer[dict]):
                 logger.error("ChatKit respond error: %s", e, exc_info=True)
                 await session.rollback()
 
+                now = datetime.now(timezone.utc).isoformat()
                 error_item = AssistantMessageItem(
                     id=self.store.generate_item_id("message", thread, context),
-                    type="message",
+                    thread_id=thread.id,
+                    created_at=now,
+                    type="assistant_message",
                     role="assistant",
                     content=[{"type": "output_text", "text": f"Sorry, I encountered an error: {e}"}],
                     status="completed",
