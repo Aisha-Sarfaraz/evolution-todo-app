@@ -113,6 +113,10 @@ config:
   allowedOrigins: "http://localhost:3000"
   # -- Runtime environment name
   environment: development
+  # -- Chat backend URL for frontend /api/chat proxy (K8s internal DNS)
+  chatBackendUrl: "http://todo-app-backend.todo-app.svc.cluster.local:7860"
+  # -- Better Auth base URL
+  betterAuthUrl: "http://localhost:3000"
 
 # -- Sensitive credentials (passed via --set, NOT stored in values.yaml)
 # Use: helm install todo-app . --set secrets.databaseUrl="postgresql://..."

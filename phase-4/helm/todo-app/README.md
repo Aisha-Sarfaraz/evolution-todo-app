@@ -21,7 +21,7 @@ phase-4/scripts/build.sh
 
 # Or build individually
 docker build -t todo-backend:latest -f phase-4/docker/backend.Dockerfile phase-3/backend/
-docker build -t todo-frontend:latest -f phase-4/docker/frontend.Dockerfile phase-3/frontend/
+docker build -t todo-frontend:latest -f phase-4/docker/frontend.Dockerfile phase-2/frontend/
 ```
 
 ### 2. Start Minikube & Load Images

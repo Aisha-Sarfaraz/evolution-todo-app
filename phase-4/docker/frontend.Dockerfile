@@ -1,6 +1,6 @@
 # Phase IV: Frontend Multi-Stage Docker Build (Next.js Standalone)
-# Build context: phase-3/frontend/
-# Usage: docker build -t todo-frontend:latest -f phase-4/docker/frontend.Dockerfile phase-3/frontend/
+# Build context: phase-2/frontend/
+# Usage: docker build -t todo-frontend:latest -f phase-4/docker/frontend.Dockerfile phase-2/frontend/
 
 # --- Stage 1: Dependencies ---
 FROM node:20-alpine AS deps
@@ -21,11 +21,13 @@ COPY . .
 # NEXT_PUBLIC_* vars are baked into the JS bundle at build time
 ARG NEXT_PUBLIC_API_URL=http://todo-backend.todo-app.svc.cluster.local:7860/api
 ARG NEXT_PUBLIC_AUTH_URL=http://localhost:3000
+ARG NEXT_PUBLIC_CHAT_API_URL=http://todo-backend.todo-app.svc.cluster.local:7860
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
 ARG NEXT_PUBLIC_OPENAI_DOMAIN_KEY=""
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_AUTH_URL=$NEXT_PUBLIC_AUTH_URL \
+    NEXT_PUBLIC_CHAT_API_URL=$NEXT_PUBLIC_CHAT_API_URL \
     NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY \
     NEXT_PUBLIC_OPENAI_DOMAIN_KEY=$NEXT_PUBLIC_OPENAI_DOMAIN_KEY \
     NEXT_TELEMETRY_DISABLED=1
@@ -56,7 +58,13 @@ EXPOSE 3000
 ENV PORT=3000 \
     HOSTNAME="0.0.0.0"
 
+# Runtime server-side env vars (injected by Kubernetes Secrets/ConfigMap)
+# CHAT_BACKEND_URL - phase-3 backend URL for /api/chat proxy
+# DATABASE_URL - Neon PostgreSQL for Better Auth
+# BETTER_AUTH_SECRET - JWT signing secret
+# BETTER_AUTH_URL - Better Auth base URL
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
 CMD ["node", "server.js"]

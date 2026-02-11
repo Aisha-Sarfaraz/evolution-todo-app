@@ -42,7 +42,7 @@ if [ "$BUILD_FRONTEND" = true ]; then
     docker build \
         -t "todo-frontend:$TAG" \
         -f "$PROJECT_ROOT/phase-4/docker/frontend.Dockerfile" \
-        "$PROJECT_ROOT/phase-3/frontend/"
+        "$PROJECT_ROOT/phase-2/frontend/"
     echo ""
     echo "Frontend image size:"
     docker images "todo-frontend:$TAG" --format "  {{.Repository}}:{{.Tag}} — {{.Size}}"

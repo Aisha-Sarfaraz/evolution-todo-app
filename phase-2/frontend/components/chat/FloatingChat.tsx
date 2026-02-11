@@ -59,6 +59,7 @@ export function FloatingChat() {
   const { control } = useChatKit({
     api: {
       url: chatUrl,
+      domainKey: process.env["NEXT_PUBLIC_OPENAI_DOMAIN_KEY"] as string,
       fetch: async (input, init) => {
         const currentUserId = userIdRef.current;
         const body: BodyInit | null = init?.body ?? null;

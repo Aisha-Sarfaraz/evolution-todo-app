@@ -10,3 +10,5 @@ data:
   LOG_FORMAT: {{ .Values.config.logFormat | quote }}
   ALLOWED_ORIGINS: {{ .Values.config.allowedOrigins | quote }}
   ENVIRONMENT: {{ .Values.config.environment | quote }}
+  CHAT_BACKEND_URL: {{ .Values.config.chatBackendUrl | quote }}
+  BETTER_AUTH_URL: {{ .Values.config.betterAuthUrl | quote }}
