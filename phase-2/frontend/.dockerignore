@@ -1,0 +1,9 @@
+node_modules
+.next
+.env.local
+.env*.local
+.git
+coverage
+__tests__
+*.test.*
+.eslintcache
