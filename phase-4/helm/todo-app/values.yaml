@@ -1,0 +1,134 @@
+# Default values for todo-app Helm chart.
+# Declare variables to be passed into templates.
+
+# -- Global configuration
+global:
+  # -- Kubernetes namespace for all resources
+  namespace: todo-app
+  # -- Deployment environment (development, staging, production)
+  environment: development
+
+# -- Backend service (FastAPI + embedded MCP)
+backend:
+  # -- Number of backend pod replicas
+  replicaCount: 1
+  image:
+    # -- Backend Docker image repository
+    repository: todo-backend
+    # -- Backend Docker image tag
+    tag: latest
+    # -- Image pull policy (IfNotPresent for local, Always for registry)
+    pullPolicy: IfNotPresent
+  service:
+    # -- Backend K8s Service type (ClusterIP = internal only)
+    type: ClusterIP
+    # -- Backend service port
+    port: 7860
+  resources:
+    requests:
+      # -- Backend CPU request
+      cpu: 250m
+      # -- Backend memory request
+      memory: 256Mi
+    limits:
+      # -- Backend CPU limit
+      cpu: 500m
+      # -- Backend memory limit
+      memory: 512Mi
+  probes:
+    liveness:
+      # -- Liveness probe path (no DB check)
+      path: /health/live
+      port: 7860
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 3
+    readiness:
+      # -- Readiness probe path (checks DB connectivity)
+      path: /health/ready
+      port: 7860
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 5
+      failureThreshold: 3
+    startup:
+      # -- Startup probe path (allows slow init)
+      path: /health/live
+      port: 7860
+      periodSeconds: 5
+      # -- 6 * 5s = 30s startup window
+      failureThreshold: 6
+  # -- Graceful shutdown window in seconds
+  terminationGracePeriodSeconds: 10
+
+# -- Frontend service (Next.js standalone)
+frontend:
+  # -- Number of frontend pod replicas
+  replicaCount: 1
+  image:
+    # -- Frontend Docker image repository
+    repository: todo-frontend
+    # -- Frontend Docker image tag
+    tag: latest
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  service:
+    # -- Frontend K8s Service type (LoadBalancer = external access via minikube tunnel)
+    type: LoadBalancer
+    # -- Frontend service port
+    port: 3000
+  resources:
+    requests:
+      # -- Frontend CPU request
+      cpu: 100m
+      # -- Frontend memory request
+      memory: 128Mi
+    limits:
+      # -- Frontend CPU limit
+      cpu: 250m
+      # -- Frontend memory limit
+      memory: 256Mi
+  probes:
+    liveness:
+      # -- Frontend liveness probe path
+      path: /api/health
+      port: 3000
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 3
+
+# -- External database (Neon PostgreSQL — NOT deployed in K8s)
+database:
+  external: true
+
+# -- Non-sensitive configuration (stored in ConfigMap)
+config:
+  # -- Application log level
+  logLevel: INFO
+  # -- Log format (json or text)
+  logFormat: json
+  # -- CORS allowed origins (comma-separated)
+  allowedOrigins: "http://localhost:3000"
+  # -- Runtime environment name
+  environment: development
+
+# -- Sensitive credentials (passed via --set, NOT stored in values.yaml)
+# Use: helm install todo-app . --set secrets.databaseUrl="postgresql://..."
+secrets:
+  # -- Neon PostgreSQL connection URL
+  databaseUrl: ""
+  # -- OpenRouter LLM API key
+  openrouterApiKey: ""
+  # -- Better Auth JWT signing secret
+  betterAuthSecret: ""
+  # -- VAPID private key for web push
+  vapidPrivateKey: ""
+  # -- VAPID public key for web push
+  vapidPublicKey: ""
+
+# -- Database migration configuration
+migration:
+  # -- Enable Alembic migration Helm hook
+  enabled: false

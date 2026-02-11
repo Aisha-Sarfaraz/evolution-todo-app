@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (reinstalled in Docker)
+node_modules
+
+# Environment files
+.env
+.env.*
+.env.local
+
+# Build output (rebuilt in Docker)
+.next
+out/
+
+# Test artifacts
+coverage/
+*.test.*
+*.spec.*
+.eslintcache
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+*.dockerignore
+
+# Documentation
+*.md
+docs/

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: todo-app
+description: Todo AI Chatbot - Local Kubernetes deployment with FastAPI backend and Next.js frontend
+type: application
+version: 0.1.0
+appVersion: "3.0.0"
+keywords:
+  - todo
+  - chatbot
+  - fastapi
+  - nextjs
+  - kubernetes
+home: https://github.com/user/todo-app

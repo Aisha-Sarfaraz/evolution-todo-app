@@ -1,0 +1,27 @@
+# Development overrides for local Minikube deployment.
+# Usage: helm install todo-app phase-4/helm/todo-app/ -f phase-4/helm/todo-app/values-dev.yaml
+
+backend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+frontend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 125m
+      memory: 128Mi
+
+config:
+  logLevel: DEBUG
+  logFormat: text
+  environment: development

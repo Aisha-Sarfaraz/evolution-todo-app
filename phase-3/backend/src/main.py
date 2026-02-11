@@ -82,7 +82,7 @@ app.mount("/mcp", mcp_app)
 
 @app.get("/health")
 async def health_check() -> dict:
-    """Health check endpoint."""
+    """Legacy health check endpoint (backward compatibility)."""
     from datetime import datetime, timezone as tz
 
     return {
@@ -92,6 +92,34 @@ async def health_check() -> dict:
         "timestamp": datetime.now(tz.utc).isoformat(),
         "mcp": "embedded",
     }
+
+
+@app.get("/health/live")
+async def health_live() -> dict:
+    """Liveness probe: is the process alive? No dependency checks."""
+    return {
+        "status": "alive",
+        "service": "todo-chatbot-api",
+        "version": "3.0.0",
+    }
+
+
+@app.get("/health/ready")
+async def health_ready():
+    """Readiness probe: can the service handle traffic? Checks DB connectivity."""
+    from fastapi.responses import JSONResponse
+    from sqlalchemy import text
+    from src.database import async_session_maker
+
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "disconnected"},
+        )
 
 
 @app.get("/")

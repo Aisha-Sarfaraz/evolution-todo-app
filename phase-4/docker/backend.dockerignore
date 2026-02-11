@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Node (not needed for Python backend)
+node_modules
+
+# Environment files
+.env
+.env.*
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test artifacts
+tests/
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+*.dockerignore
+
+# Documentation
+*.md
+docs/

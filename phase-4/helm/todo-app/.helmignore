@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*.tmp
+*~
+.vscode/
+.idea/
+
+# CI
+.github/
+.gitlab/
+
+# Test
+tests/

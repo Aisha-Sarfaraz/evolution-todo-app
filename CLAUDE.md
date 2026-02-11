@@ -210,3 +210,6 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
 
 @AGENTS.md
+
+## Recent Changes
+- 003-kubernetes-deployment: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]

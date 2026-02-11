@@ -1,0 +1,31 @@
+
+=== Todo AI Chatbot - Deployed! ===
+
+Thank you for installing {{ .Chart.Name }} (v{{ .Chart.Version }}).
+
+1. Check pod status:
+   kubectl get pods -n {{ .Values.global.namespace }}
+
+2. Access the application:
+   {{- if eq .Values.frontend.service.type "LoadBalancer" }}
+   # Start minikube tunnel (separate terminal):
+   minikube tunnel
+
+   # Then access:
+   http://localhost:{{ .Values.frontend.service.port }}
+   {{- else }}
+   kubectl port-forward -n {{ .Values.global.namespace }} svc/{{ include "todo-app.fullname" . }}-frontend {{ .Values.frontend.service.port }}:{{ .Values.frontend.service.port }}
+   {{- end }}
+
+3. View logs:
+   # Backend:
+   kubectl logs -n {{ .Values.global.namespace }} -l app.kubernetes.io/component=backend -f
+   # Frontend:
+   kubectl logs -n {{ .Values.global.namespace }} -l app.kubernetes.io/component=frontend -f
+
+4. Check health:
+   kubectl exec -n {{ .Values.global.namespace }} deploy/{{ include "todo-app.fullname" . }}-backend -- curl -s http://localhost:{{ .Values.backend.service.port }}/health/ready
+
+5. Tear down:
+   helm uninstall {{ .Release.Name }}
+   kubectl delete namespace {{ .Values.global.namespace }}
